@@ -1,0 +1,143 @@
+name: CI/CD Pipeline - GroupC
+
+# Trigger on push to GroupC branch
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+# Environment variables used across jobs
+env:
+  DOCKER_IMAGE_NAME: groupc_wtfrepo
+  DOCKER_IMAGE_TAG: studybud_v1
+  CONTAINER_NAME: studybud_app
+  APP_PORT: 9000
+
+jobs:
+  # STAGE 1: Checkout Code
+  checkout-and-build:
+    name: Build and Push Docker Image
+    runs-on: ubuntu-latest
+    
+    steps:
+      # Checkout the GroupC branch
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          ref: main
+      
+      # Make build script executable
+      - name: Make Build Script Executable
+        run: chmod +x buildDockerScript.sh
+      
+      # Set up Docker Buildx (for better caching)
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      # Login to Docker Hub
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+      
+      # Build and push using the existing script
+      - name: Build and Push Docker Image
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+        run: |
+          echo "Building the image and pushing...."
+          ./buildDockerScript.sh
+      
+      - name: Build Complete
+        run: echo "✅ Docker image built and pushed successfully!"
+
+  # STAGE 2: Deploy to EC2
+  deploy-to-ec2:
+    name: Deploy to EC2 Instance
+    needs: checkout-and-build
+    runs-on: ubuntu-latest
+    
+    steps:
+      # Checkout code again to access deploy.sh
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          ref: main
+      
+      # Deploy to EC2 using SSH
+      - name: Deploy to EC2 via SSH
+        uses: appleboy/ssh-action@v1.0.0
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_KEY }}
+          envs: DOCKER_USERNAME,DOCKER_PASSWORD
+          script: |
+            echo "Connected to EC2"
+            
+            # Install Docker if not installed
+            if ! command -v docker &> /dev/null; then
+                echo "Installing Docker..."
+                sudo apt update -y
+                sudo apt install -y docker.io
+                sudo systemctl start docker
+                sudo systemctl enable docker
+                sudo usermod -aG docker ubuntu
+                echo "Docker installed successfully"
+            else
+                echo "Docker is already installed"
+            fi
+            
+            # Install Git if not installed
+            if ! command -v git &> /dev/null; then
+                echo "Installing Git..."
+                sudo apt update -y
+                sudo apt install -y git
+                echo "Git installed successfully"
+            else
+                echo "Git is already installed"
+            fi
+            
+            # Remove old project folder to ensure fresh clone
+            if [ -d "/home/ubuntu/groupc-december-mini-project" ]; then
+                echo "Removing old project folder..."
+                rm -rf "/home/ubuntu/groupc-december-mini-project"
+            fi
+            
+            # Prepare persistent folder for SQLite
+            echo "Creating SQLite persistent folder..."
+            mkdir -p /home/ubuntu/sqlite
+            
+            # Clone project repo
+            echo "Cloning repository..."
+            if [ ! -d "/home/ubuntu/groupc-december-mini-project" ]; then
+                git clone https://github.com/LibertyWritesCode/groupc-december-mini-project.git "/home/ubuntu/groupc-december-mini-project"
+            fi
+            
+            # Navigate to project and checkout main branch
+            cd "/home/ubuntu/groupc-december-mini-project" || exit 1
+            git pull
+
+            # Copy db.sqlite3 to persistent folder
+            if [ -f "/home/ubuntu/groupc-december-mini-project/db.sqlite3" ]; then
+                echo "Copying database to persistent storage..."
+                cp "/home/ubuntu/groupc-december-mini-project/db.sqlite3" /home/ubuntu/sqlite/db.sqlite3
+            fi
+            
+            # Set Docker credentials for deploy script
+            export DOCKER_USERNAME="${DOCKER_USERNAME}"
+            export DOCKER_PASSWORD="${DOCKER_PASSWORD}"
+            
+            # Run deploy script
+            echo "Running deployment script..."
+            bash ~/groupc-december-mini-project/deploy.sh
+            
+            echo "✅ Deployment completed successfully!" 
