@@ -2,10 +2,10 @@
 
 # Container name
 CONTAINER_NAME="studybud_app"
-IMAGE_NAME="engrlibby/groupc_wtfrepo:studybud_v1"
+IMAGE_NAME="cloudqween/projects:studybud_v1"
 
 # Path to persistent SQLite file on EC2
-SQLITE_HOST_PATH="/home/ubuntu/sqlite/db.sqlite3"
+SQLITE_HOST_PATH="/home/ubuntu/sqlite"
 SQLITE_CONTAINER_PATH="/app/db.sqlite3"  # inside container
 
 echo "Pulling the Docker image for deployment"

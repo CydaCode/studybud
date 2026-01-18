@@ -1,6 +1,6 @@
-name: CI/CD Pipeline - GroupC
+name: CI/CD Pipeline
 
-# Trigger on push to GroupC branch
+# Trigger on push to main branch
 on:
   push:
     branches:
@@ -11,7 +11,7 @@ on:
 
 # Environment variables used across jobs
 env:
-  DOCKER_IMAGE_NAME: groupc_wtfrepo
+  DOCKER_IMAGE_NAME: projects
   DOCKER_IMAGE_TAG: studybud_v1
   CONTAINER_NAME: studybud_app
   APP_PORT: 9000
@@ -23,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-      # Checkout the GroupC branch
+      # Checkout themain branch
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
@@ -96,48 +96,13 @@ jobs:
                 echo "Docker is already installed"
             fi
             
-            # Install Git if not installed
-            if ! command -v git &> /dev/null; then
-                echo "Installing Git..."
-                sudo apt update -y
-                sudo apt install -y git
-                echo "Git installed successfully"
-            else
-                echo "Git is already installed"
-            fi
-            
-            # Remove old project folder to ensure fresh clone
-            if [ -d "/home/ubuntu/groupc-december-mini-project" ]; then
-                echo "Removing old project folder..."
-                rm -rf "/home/ubuntu/groupc-december-mini-project"
-            fi
-            
             # Prepare persistent folder for SQLite
-            echo "Creating SQLite persistent folder..."
+            echo "Ensuring SQLite persistence directory exists..."
             mkdir -p /home/ubuntu/sqlite
             
-            # Clone project repo
-            echo "Cloning repository..."
-            if [ ! -d "/home/ubuntu/groupc-december-mini-project" ]; then
-                git clone https://github.com/LibertyWritesCode/groupc-december-mini-project.git "/home/ubuntu/groupc-december-mini-project"
-            fi
-            
-            # Navigate to project and checkout main branch
-            cd "/home/ubuntu/groupc-december-mini-project" || exit 1
-            git pull
-
-            # Copy db.sqlite3 to persistent folder
-            if [ -f "/home/ubuntu/groupc-december-mini-project/db.sqlite3" ]; then
-                echo "Copying database to persistent storage..."
-                cp "/home/ubuntu/groupc-december-mini-project/db.sqlite3" /home/ubuntu/sqlite/db.sqlite3
-            fi
-            
-            # Set Docker credentials for deploy script
-            export DOCKER_USERNAME="${DOCKER_USERNAME}"
-            export DOCKER_PASSWORD="${DOCKER_PASSWORD}"
-            
             # Run deploy script
+            chmod +x ~/deploy.sh
             echo "Running deployment script..."
-            bash ~/groupc-december-mini-project/deploy.sh
+            bash ~/studybud/deploy.sh
             
             echo "✅ Deployment completed successfully!" 
