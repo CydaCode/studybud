@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 # Container name
 CONTAINER_NAME="studybud_app"
@@ -14,6 +15,7 @@ docker pull $IMAGE_NAME
 # Stop old container if it exists
 docker stop $CONTAINER_NAME 2>/dev/null || true
 docker rm $CONTAINER_NAME 2>/dev/null || true
+docker rmi $IMAGE_NAME 2>/dev/null || true
 
 echo "Starting new container"
 docker run -d \
