@@ -29,7 +29,8 @@ ALLOWED_HOSTS = [
     "98.80.119.246",  # your EC2 public IP
     "localhost",
     "127.0.0.1",
-    "98.80.119.246"
+    "98.80.119.246",
+    "3.90.185.193"
     
     # optionally your domain if you use one
 ]
